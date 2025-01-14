@@ -1,6 +1,12 @@
 package com.example;
 
+import org.apache.iceberg.FileScanTask;
+import org.apache.iceberg.Table;
+import org.apache.iceberg.TableScan;
 import org.apache.iceberg.catalog.Namespace;
+import org.apache.iceberg.catalog.TableIdentifier;
+import org.apache.iceberg.io.CloseableIterable;
+import org.apache.iceberg.util.TableScanUtil;
 import software.amazon.s3tables.iceberg.S3TablesCatalog;
 import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
 
@@ -20,8 +26,7 @@ public class S3TablesDemo {
         // 创建自定义凭证提供程序
         String accessKeyId = "";
         String secretKey = "";
-        AwsCredentialsProvider credentialsProvider = new CustomAwsCredentialsProvider(accessKeyId, secretKey);
-        
+
         // s3Properties.put("s3.region", "us-east-1");
         s3Properties.put("client.region", "us-east-1");
         s3Properties.put("client.credentials-provider", CustomAwsCredentialsProvider.class.getName());
@@ -35,15 +40,15 @@ public class S3TablesDemo {
             s3TablesCatalog.initialize("s3tables", s3Properties);
             System.out.println("Successfully initialized S3 Tables catalog!");
             
-            // 尝试创建一个命名空间
-            try {
-                Namespace namespace = Namespace.of("test_namespace");
-                s3TablesCatalog.createNamespace(namespace);
-                System.out.println("Successfully created namespace: " + namespace);
-            } catch (Exception e) {
-                e.printStackTrace();
-                System.out.println("Note: Could not create namespace - " + e.getMessage());
-            }
+            // // 尝试创建一个命名空间
+            // try {
+            //     Namespace namespace = Namespace.of("test_namespace");
+            //     s3TablesCatalog.createNamespace(namespace);
+            //     System.out.println("Successfully created namespace: " + namespace);
+            // } catch (Exception e) {
+            //     e.printStackTrace();
+            //     System.out.println("Note: Could not create namespace - " + e.getMessage());
+            // }
 
             // 尝试列出命名空间
             try {
@@ -51,6 +56,17 @@ public class S3TablesDemo {
                 System.out.println("Successfully listed namespaces:");
                 for (Namespace namespace : namespaces) {
                     System.out.println(namespace);
+                    List<TableIdentifier> tblIdentifiers = s3TablesCatalog.listTables(namespace);
+                    for (TableIdentifier tblId : tblIdentifiers) {
+                        System.out.println(tblId);
+                        Table tbl = s3TablesCatalog.loadTable(tblId);
+                        System.out.println(tbl.schema());
+                        TableScan scan = tbl.newScan();
+                        CloseableIterable<FileScanTask> fileScanTasks = scan.planFiles();
+                        for (FileScanTask task : fileScanTasks) {
+                            System.out.println(task.file());
+                        }
+                    }
                 }
             } catch (Exception e) {
                 e.printStackTrace();
